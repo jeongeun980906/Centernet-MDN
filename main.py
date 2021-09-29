@@ -19,4 +19,7 @@ if __name__ == "__main__":
     random.seed(0)
 
     sol = SOLVER(args)
-    sol.train()
+    if args.train:
+        sol.train()
+    else:
+        sol.test()

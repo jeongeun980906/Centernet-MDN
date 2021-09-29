@@ -10,8 +10,8 @@ class MixtureHead(nn.Module):
                  cnv_dim = 256,     # cnv dim
                  num_classes      = 80,   # number of classes 
                  k          = 5,    # number of mixtures
-                 sig_min    = 1e-4, # minimum sigma
-                 sig_max    = None, # maximum sigma
+                 sig_min    = 1, # minimum sigma
+                 sig_max    = 10, # maximum sigma
                  SHARE_SIG  = True  # share sigma among mixture
                  ):
         super(MixtureHead,self).__init__()
