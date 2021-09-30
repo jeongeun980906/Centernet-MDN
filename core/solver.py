@@ -17,22 +17,22 @@ import os
 class SOLVER():
     def __init__(self,args):
         self.train_mode=args.train
-        os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
+        os.environ["CUDA_VISIBLE_DEVICES"]="0, 1, 2, 3, 4, 5, 6, 7"
         self.device = 'cuda'
         self.lr = 1e-3
         self.args=args
-        self.multigpu = args.multigpu
         self.load_dataset()
+        print(" avaiable gpu :: ",torch.cuda.device_count())
         self.load_model()
         if not self.train:
             self.load_ckpt(0)
 
     def load_dataset(self):
         if self.train_mode:
-            self.dataset = COCO(root='./cocodataset')
-            self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=8,shuffle=True,num_workers=0)
+            self.dataset = COCO(root='/data/opensets/coco')
+            self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=32,shuffle=True,num_workers=0)
         else:
-            self.dataset = COCO_eval(root='./cocodataset',split='test')
+            self.dataset = COCO_eval(root='/data/opensets/coco',split='test')
             self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=1,shuffle=True,num_workers=0)
 
     def load_model(self):
@@ -42,32 +42,33 @@ class SOLVER():
             self.test = self.test_baseline
         elif self.args.base == 'mdn':
             self.model = get_mixture_hourglass['large_hourglass']
-            self.model = torch.nn.DataParallel(self.model)
+            #self.model = self.model.to(self.device)
             self.model = self.model.cuda()
             self.train = self.train_mdn
             self.test = self.test_mdn
         self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr,weight_decay=1e-7)
 
     def train_mdn(self):
-        print("TRAIN")
+        print("TRAIN MDN")
+        self.model = torch.nn.DataParallel(self.model)
         EPOCHS = 20
         txtName = ('./res/mdn_log.txt')
         f = open(txtName,'w') # Open txt file
         for epoch in range(EPOCHS):
             total_loss=0
             for e,batch in enumerate(self.dataloader):
-                outputs = self.model(batch['image'].to(self.device))
+                outputs = self.model(batch['image'])
                 hmaps, regs, w_h_ = zip(*outputs)
-                regs = [_tranpose_and_gather_feature(r, batch['inds'].to(self.device)) for r in regs]
-                w_h_ = [_tranpose_and_gather_feature(r, batch['inds'].to(self.device)) for r in w_h_]
+                regs = [_tranpose_and_gather_feature(r, batch['inds'].cuda()) for r in regs]
+                w_h_ = [_tranpose_and_gather_feature(r, batch['inds'].cuda()) for r in w_h_]
 
                 hmap_loss = 0
                 for hmap in hmaps:
                     pi,mu,sigma = hmap['pi'], hmap['mu'], hmap['sigma']
-                    hmap_mace_loss = mace_loss(pi,mu,sigma, batch['hmap'].to(self.device))
+                    hmap_mace_loss = mace_loss(pi,mu,sigma, batch['hmap'].cuda())
                     hmap_loss += hmap_mace_loss['mace_avg'] - 1 * hmap_mace_loss['epis_avg']  + 1* hmap_mace_loss['alea_avg']
-                reg_loss = _reg_loss(regs, batch['regs'].to(self.device), batch['ind_masks'].to(self.device))
-                w_h_loss = _reg_loss(w_h_, batch['w_h_'].to(self.device), batch['ind_masks'].to(self.device))
+                reg_loss = _reg_loss(regs, batch['regs'].cuda(), batch['ind_masks'].cuda())
+                w_h_loss = _reg_loss(w_h_, batch['w_h_'].cuda(), batch['ind_masks'].cuda())
                 loss = hmap_loss + 1 * reg_loss + 0.1 * w_h_loss
 
                 self.optimizer.zero_grad()
@@ -84,8 +85,9 @@ class SOLVER():
             strtemp = ("EPOCH: %d LOSS: %.3f"%(epoch,total_loss))
             print_n_txt(_f=f,_chars=strtemp)
             torch.save(self.model.state_dict(),'./ckpt/mdn/{}.pt'.format(epoch))
+
     def train_baseline(self):
-        print("TRAIN")
+        print("TRAIN BASELINE")
         EPOCHS = 20
         txtName = ('./res/baseline_log.txt')
         f = open(txtName,'w') # Open txt file

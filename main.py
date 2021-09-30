@@ -8,7 +8,7 @@ if __name__ == "__main__":
 
     # Training mode and dataset
     parser.add_argument('--train', type=int,default=1,help='train or test')
-    parser.add_argument('--base', type=str,default='baseline',help='dataset',choices=['baseline','mdn'])
+    parser.add_argument('--base', type=str,default='mdn',help='dataset',choices=['baseline','mdn'])
     parser.add_argument('--gpu', type=int,default=0,help='gpu')
 
     args = parser.parse_args()

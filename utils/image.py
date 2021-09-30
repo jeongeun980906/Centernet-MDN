@@ -28,9 +28,9 @@ def get_affine_transform(center,
                          shift=np.array([0, 0], dtype=np.float32),
                          inv=0):
   if not isinstance(scale, np.ndarray) and not isinstance(scale, list):
-    scale = scale.squeeze(0).numpy()
-    center = center[0].numpy()
-    #scale = np.array([scale[0], scale[1]], dtype=np.float32)
+    #scale = scale.squeeze(0).numpy()
+    #center = center[0].numpy()
+    scale = np.array([scale, scale], dtype=np.float32)
   scale_tmp = scale
   src_w = scale_tmp[0]
   dst_w = output_size[0]
