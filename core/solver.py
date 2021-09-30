@@ -5,7 +5,7 @@ from model.hourglass import get_hourglass
 from model.MDN_hourglass import get_mixture_hourglass
 
 from core.baseline_loss import _neg_loss,_reg_loss
-from core.mixture_loss import mace_loss
+from core.mixture_loss import mace_loss,_gather
 
 from utils.utils import _tranpose_and_gather_feature
 from utils.image import transform_preds
@@ -113,10 +113,14 @@ class SOLVER():
     
     def test_baseline(self):
         max_per_image = 100
+        txtName = ('./res/baseline_test.txt')
+        f = open(txtName,'w') # Open txt file
         self.model.eval()
         results = {}
         with torch.no_grad():
-            for img_id, inputs in self.dataloader:
+            for e,(img_id, inputs) in enumerate(self.dataloader):
+                if e%50==0:
+                    print("test on Image ID: {} / {}".format(e,len(self.dataloader)))
                 detections = []
                 for scale in inputs:
                     inputs[scale]['image'] = inputs[scale]['image'].to(self.device)
@@ -157,15 +161,67 @@ class SOLVER():
                 results[img_id] = bbox_and_scores
 
             eval_results = self.dataset.run_eval(results)
-            print(eval_results)
-
+            strtemp = (eval_results)
+            print_n_txt(_f=f,_chars=strtemp)
+            
     def load_ckpt(self,epoch):
-        path = './ckpt/baseline/{}.pt'.format(epoch)
+        path = './ckpt/{}/{}.pt'.format(self.args.base,epoch)
         state_dict=torch.load(path)
         self.model.load_state_dict(state_dict)
 
     def test_mdn(self):
+        txtName = ('./res/mdn_test.txt')
+        f = open(txtName,'w') # Open txt file
+        max_per_image = 100
         self.model.eval()
+        results = {}
         with torch.no_grad():
-            for e,batch in enumerate(self.dataloader):
-                outputs = self.model(batch['image'].to(self.device))
+            for e,(img_id, inputs) in enumerate(self.dataloader):
+                if e%50==0:
+                    print("test on Image ID: {} / {}".format(e,len(self.dataloader)))
+                detections = []
+                for scale in inputs:
+                    inputs[scale]['image'] = inputs[scale]['image'].to(self.device)
+                    output = self.model(inputs[scale]['image'].squeeze(1))[-1]
+                    pi = output[0]['pi']
+                    mu = output[0]['mu']
+                    sigma = output[0]['sigma']
+                    output[0] = _gather(pi,mu,sigma)['mu_prime']
+                    dets = ctdet_decode(*output)
+                    dets = dets.detach().cpu().numpy().reshape(1, -1, dets.shape[2])[0]
+
+                    top_preds = {}
+                    # print(inputs[scale]['scale'])
+                    dets[:, :2] = transform_preds(dets[:, 0:2],
+                                                inputs[scale]['center'],
+                                                inputs[scale]['scale'],
+                                                (inputs[scale]['fmap_w'], inputs[scale]['fmap_h']))
+                    dets[:, 2:4] = transform_preds(dets[:, 2:4],
+                                                inputs[scale]['center'],
+                                                inputs[scale]['scale'],
+                                                (inputs[scale]['fmap_w'], inputs[scale]['fmap_h']))
+                    cls = dets[:, -1]
+                    for j in range(self.dataset.num_classes):
+                        inds = (cls == j)
+                        top_preds[j + 1] = dets[inds, :5].astype(np.float32)
+                        top_preds[j + 1][:, :4] /= scale
+
+                    detections.append(top_preds)
+
+                bbox_and_scores = {}
+                for j in range(1, self.dataset.num_classes + 1):
+                    bbox_and_scores[j] = np.concatenate([d[j] for d in detections], axis=0)
+                scores = np.hstack([bbox_and_scores[j][:, 4] for j in range(1, self.dataset.num_classes + 1)])
+
+                if len(scores) > max_per_image:
+                    kth = len(scores) - max_per_image
+                    thresh = np.partition(scores, kth)[kth]
+                    for j in range(1, self.dataset.num_classes + 1):
+                        keep_inds = (bbox_and_scores[j][:, 4] >= thresh)
+                        bbox_and_scores[j] = bbox_and_scores[j][keep_inds]
+
+                results[img_id] = bbox_and_scores
+
+            eval_results = self.dataset.run_eval(results)
+            strtemp = (eval_results)
+            print_n_txt(_f=f,_chars=strtemp)

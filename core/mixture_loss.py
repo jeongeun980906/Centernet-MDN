@@ -11,15 +11,23 @@ def _gather(pi,mu,sigma):
         :param mu:      [N x K x D x W x H]
         :param sigma:   [N x K x D x W x H]
     """
-    max_idx = torch.argmax(pi,dim=1) # [N x W x H]
-    mu      = torch.sigmoid(mu,dim=2) # [N x K x D x W x H]
-    idx_gather = max_idx.unsqueeze(dim=-1).repeat(1,mu.shape[2],mu.shape[3],mu.shape[4]).unsqueeze(1) # [N x 1 x D x W x H]
-    mu_sel = torch.gather(mu,dim=1,index=idx_gather).squeeze(dim=1) # [N x D x W x H]
-    sigma_sel = torch.gather(sigma,dim=1,index=idx_gather).squeeze(dim=1) # [N x D x W x H]
-    out = {'max_idx':max_idx, # [N x W x H]
-           'mu_sel':mu_sel, # [N x D x W x H]
-           'sigma_sel':sigma_sel # [N x D x W x H]
-           }
+    pi_usq = torch.unsqueeze(pi,2) # [N x K x 1 x W x H]
+    pi_exp = pi_usq.expand_as(sigma) # [N x K x D x W x H]
+    mu_prime = torch.mul(pi_exp,mu) # [N x K x D x W x H]
+    mu_prime = torch.sum(mu_prime, dim=1)
+    out = {
+        'mu_prime':mu_prime
+    }
+    # max_idx = torch.argmax(pi,dim=1) # [N x W x H]
+    # print(max_idx.size())
+    # mu      = torch.sigmoid(mu) # [N x K x D x W x H]
+    # idx_gather = max_idx.unsqueeze(dim=-1).repeat(1,mu.shape[2],mu.shape[3],mu.shape[4]).unsqueeze(1) # [N x 1 x D x W x H]
+    # mu_sel = torch.gather(mu,dim=1,index=idx_gather).squeeze(dim=1) # [N x D x W x H]
+    # sigma_sel = torch.gather(sigma,dim=1,index=idx_gather).squeeze(dim=1) # [N x D x W x H]
+    # out = {'max_idx':max_idx, # [N x W x H]
+    #        'mu_sel':mu_sel, # [N x D x W x H]
+    #        'sigma_sel':sigma_sel # [N x D x W x H]
+    #        }
     return out
 
 def mace_loss(pi,mu,sigma,target):
@@ -88,53 +96,6 @@ def mln_uncertainties(pi,mu,sigma):
                 'pi_entropy':entropy_pi
                 }
     return unct_out
-
-def mln_eval(pi,mu,sigma,num,N=10):
-    """
-        :param pi:      [N x K]
-        :param mu:      [N x K x D]
-        :param sigma:   [N x K x D]
-    """
-    top_pi,top_idx = torch.topk(pi,num,dim=1) # [N X n]
-    top_pi=torch.softmax(top_pi,dim=-1)
-    max_idx = torch.argmax(pi,dim=1) # [N]
-    max2_idx= top_idx[:,1] # [N]
-
-    mu      = torch.softmax(mu,dim=2) # [N x K x D]
-    mu_max = torch.argmax(mu,dim=2) # [N x K]
-    mu_onehot=_to_one_hot(mu_max,N)
-
-    pi_usq = torch.unsqueeze(pi,2) # [N x K x 1]
-    pi_exp = pi_usq.expand_as(sigma) # [N x K x D]
-
-    mu_exp = torch.mul(pi_exp,mu_onehot) # mixtured mu [N x K x D]
-    mu_prime = torch.sum(mu_exp,dim=1) # [N x D]
-
-    sig_exp = torch.mul(pi_exp,sigma) # mixtured mu [N x K x D]
-    sig_prime = torch.sum(sig_exp,dim=1) # [N x D]
-
-    idx1_gather = max_idx.unsqueeze(dim=-1).repeat(1,mu.shape[2]).unsqueeze(1) # [N x 1 x D]
-    mu_sel = torch.gather(mu,dim=1,index=idx1_gather).squeeze(dim=1) # [N x D]
-    sigma_sel = torch.gather(sigma,dim=1,index=idx1_gather).squeeze(dim=1) # [N x D]
-
-    idx2_gather = max2_idx.unsqueeze(dim=-1).repeat(1,mu.shape[2]).unsqueeze(1) # [N x 1 x D]
-    mu_sel2 = torch.gather(mu,dim=1,index=idx2_gather).squeeze(dim=1) # [N x D]
-    sigma_sel2 = torch.gather(sigma,dim=1,index=idx2_gather).squeeze(dim=1) # [N x D]
-   
-    unct_out = mln_uncertainties(pi,mu,sigma)
-    pi_entropy = unct_out['pi_entropy'] # [N]
-
-    out = {'max_idx':max_idx, # [N]
-           'mu_sel':mu_sel, # [N x D]
-           'sigma_sel':sigma_sel, # [N x D]
-           'mu_sel2':mu_sel2, # [N x D]
-           'sigma_sel2':sigma_sel2, # [N x D]
-           'mu_prime': mu_prime, # [N x D]
-           'sigma_prime': sig_prime, # [N x D]
-           'pi_entropy': pi_entropy, # [N]
-           'top_pi':top_pi
-           }
-    return out
 
 
 def neg_loss(preds, targets):
