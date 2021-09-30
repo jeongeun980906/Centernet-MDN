@@ -17,10 +17,11 @@ import os
 class SOLVER():
     def __init__(self,args):
         self.train_mode=args.train
-        os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu) 
+        os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu)
         self.device = 'cuda'
         self.lr = 1e-3
         self.args=args
+        self.multigpu = args.multigpu
         self.load_dataset()
         self.load_model()
         if not self.train:
@@ -40,11 +41,13 @@ class SOLVER():
             self.train=self.train_baseline
             self.test = self.test_baseline
         elif self.args.base == 'mdn':
-            self.model = get_mixture_hourglass['large_hourglass'].to(self.device)
+            self.model = get_mixture_hourglass['large_hourglass']
+            self.model = torch.nn.DataParallel(self.model)
+            self.model = self.model.cuda()
             self.train = self.train_mdn
             self.test = self.test_mdn
         self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr,weight_decay=1e-7)
-    
+
     def train_mdn(self):
         print("TRAIN")
         EPOCHS = 20
@@ -57,7 +60,7 @@ class SOLVER():
                 hmaps, regs, w_h_ = zip(*outputs)
                 regs = [_tranpose_and_gather_feature(r, batch['inds'].to(self.device)) for r in regs]
                 w_h_ = [_tranpose_and_gather_feature(r, batch['inds'].to(self.device)) for r in w_h_]
-                
+
                 hmap_loss = 0
                 for hmap in hmaps:
                     pi,mu,sigma = hmap['pi'], hmap['mu'], hmap['sigma']
@@ -110,7 +113,7 @@ class SOLVER():
             strtemp = ("EPOCH: %d LOSS: %.3f"%(epoch,total_loss))
             print_n_txt(_f=f,_chars=strtemp)
             torch.save(self.model.state_dict(),'./ckpt/baseline/{}.pt'.format(epoch))
-    
+
     def test_baseline(self):
         max_per_image = 100
         txtName = ('./res/baseline_test.txt')
@@ -163,7 +166,7 @@ class SOLVER():
             eval_results = self.dataset.run_eval(results)
             strtemp = (eval_results)
             print_n_txt(_f=f,_chars=strtemp)
-            
+
     def load_ckpt(self,epoch):
         path = './ckpt/{}/{}.pt'.format(self.args.base,epoch)
         state_dict=torch.load(path)

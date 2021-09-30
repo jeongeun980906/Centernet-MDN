@@ -5,7 +5,7 @@ import numpy as np
 import random
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    
+
     # Training mode and dataset
     parser.add_argument('--train', type=int,default=1,help='train or test')
     parser.add_argument('--base', type=str,default='baseline',help='dataset',choices=['baseline','mdn'])
