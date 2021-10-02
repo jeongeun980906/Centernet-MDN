@@ -1,5 +1,6 @@
 import torch
 from utils.coco import COCO,COCO_eval
+from utils.voc import PascalVOC,PascalVOC_eval
 
 from model.hourglass import get_hourglass
 from model.MDN_hourglass import get_mixture_hourglass
@@ -27,13 +28,20 @@ class SOLVER():
             self.load_ckpt(0)
 
     def load_dataset(self):
-        if self.train_mode:
-            self.dataset = COCO(root='./cocodataset')
-            self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=8,shuffle=True,num_workers=0)
-        else:
-            self.dataset = COCO_eval(root='./cocodataset',split='test')
-            self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=1,shuffle=True,num_workers=0)
-
+        if self.args.data == 'coco':
+            if self.train_mode:
+                self.dataset = COCO(root='/data/opensets/coco')
+                self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=8,shuffle=True,num_workers=0)
+            else:
+                self.dataset = COCO_eval(root='/data/opensets/coco',split='test')
+                self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=1,shuffle=True,num_workers=0)
+        elif self.args.data == 'voc':
+            if self.train_mode:
+                self.dataset = PascalVOC(root='/data/opensets/voc')
+                self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=8,shuffle=True,num_workers=0)
+            else:
+                self.dataset = COCO_eval(root='/data/opensets/coco',split='test')
+                self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=1,shuffle=True,num_workers=0)
     def load_model(self):
         if self.args.base == 'baseline':
             self.model = get_hourglass['large_hourglass'].to(self.device)
@@ -48,7 +56,12 @@ class SOLVER():
     def train_mdn(self):
         print("TRAIN")
         EPOCHS = 20
-        txtName = ('./res/mdn_log.txt')
+        try:
+            os.mkdir("./res/{}".format(self.args.id))
+            os.mkdir("./ckpt/mdn/{}".format(self.args.id))
+        except:
+            pass
+        txtName = ('./res/{}/mdn_log.txt'.format(self.args.id))
         f = open(txtName,'w') # Open txt file
         for epoch in range(EPOCHS):
             total_loss=0
@@ -80,7 +93,7 @@ class SOLVER():
             total_loss /= len(self.dataloader)
             strtemp = ("EPOCH: %d LOSS: %.3f"%(epoch,total_loss))
             print_n_txt(_f=f,_chars=strtemp)
-            torch.save(self.model.state_dict(),'./ckpt/mdn/{}.pt'.format(epoch))
+            torch.save(self.model.state_dict(),'./ckpt/mdn/{}/{}.pt'.format(self.args.id,epoch))
     def train_baseline(self):
         print("TRAIN")
         EPOCHS = 20

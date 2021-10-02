@@ -44,7 +44,7 @@ COCO_EIGEN_VECTORS = [[-0.58752847, -0.69563484, 0.41340352],
 
 
 class COCO(data.Dataset):
-  def __init__(self, root, split='train', img_size=512):
+  def __init__(self, root, split='train', img_size=256):
     super(COCO, self).__init__()
     self.num_classes = 80
     self.class_name = COCO_NAMES
