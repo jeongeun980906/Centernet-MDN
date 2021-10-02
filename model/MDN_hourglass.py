@@ -78,7 +78,7 @@ class MDN_hourglass(nn.Module):
         self.cnvs_ = nn.ModuleList([nn.Sequential(nn.Conv2d(cnv_dim,curr_dim,(1,1),bias=False),
                                         nn.BatchNorm2d(curr_dim)) for _ in range(nstack-1)])
         # Heatmap Mixture
-        self.hmap = nn.ModuleList([MixtureHead(in_dim=curr_dim,cnv_dim=cnv_dim) for _ in range(nstack)])
+        self.hmap = nn.ModuleList([MixtureHead(in_dim=curr_dim,cnv_dim=cnv_dim,num_classes=num_classes) for _ in range(nstack)])
 
         # regression layers
         self.regs = nn.ModuleList([make_kp_layer(cnv_dim, curr_dim, 2) for _ in range(nstack)])
@@ -103,9 +103,9 @@ class MDN_hourglass(nn.Module):
 
 get_mixture_hourglass = \
   {'large_hourglass':
-     MDN_hourglass(n=5, nstack=2, dims=[256, 256, 384, 384, 384, 512], modules=[2, 2, 2, 2, 2, 4]),
+     MDN_hourglass(n=5, nstack=2, dims=[256, 256, 384, 384, 384, 512], modules=[2, 2, 2, 2, 2, 4],num_classes=80),
    'small_hourglass':
-     MDN_hourglass(n=5, nstack=1, dims=[256, 256, 384, 384, 384, 512], modules=[2, 2, 2, 2, 2, 4])}
+     MDN_hourglass(n=5, nstack=1, dims=[256, 256, 384, 384, 384, 512], modules=[2, 2, 2, 2, 2, 4],num_classes=80)}
 
 if __name__ == '__main__':
 

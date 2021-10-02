@@ -3,7 +3,7 @@ from utils.coco import COCO,COCO_eval
 from utils.voc import PascalVOC,PascalVOC_eval
 
 from model.hourglass import get_hourglass
-from model.MDN_hourglass import get_mixture_hourglass
+from model.MDN_hourglass import MDN_hourglass
 
 from core.baseline_loss import _neg_loss,_reg_loss
 from core.mixture_loss import mace_loss,_gather
@@ -20,7 +20,7 @@ class SOLVER():
         self.train_mode=args.train
         os.environ["CUDA_VISIBLE_DEVICES"]=str(args.gpu) 
         self.device = 'cuda'
-        self.lr = 1e-3
+        self.lr = 5e-4
         self.args=args
         self.load_dataset()
         self.load_model()
@@ -28,29 +28,36 @@ class SOLVER():
             self.load_ckpt(0)
 
     def load_dataset(self):
-        if self.args.data == 'coco':
+        if self.args.dataset == 'coco':
+            self.num_classes=80
             if self.train_mode:
                 self.dataset = COCO(root='/data/opensets/coco')
                 self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=8,shuffle=True,num_workers=0)
             else:
                 self.dataset = COCO_eval(root='/data/opensets/coco',split='test')
                 self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=1,shuffle=True,num_workers=0)
-        elif self.args.data == 'voc':
+        elif self.args.dataset == 'voc':
+            self.num_classes=20
             if self.train_mode:
-                self.dataset = PascalVOC(root='/data/opensets/voc')
+                self.dataset = PascalVOC(root='/data/private/voc')
                 self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=8,shuffle=True,num_workers=0)
             else:
-                self.dataset = COCO_eval(root='/data/opensets/coco',split='test')
+                self.dataset = COCO_eval(root='/data/private/voc',split='test')
                 self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=1,shuffle=True,num_workers=0)
+        else:
+            raise NotImplementedError
     def load_model(self):
-        if self.args.base == 'baseline':
+        if self.args.model == 'baseline':
             self.model = get_hourglass['large_hourglass'].to(self.device)
             self.train=self.train_baseline
             self.test = self.test_baseline
-        elif self.args.base == 'mdn':
-            self.model = get_mixture_hourglass['large_hourglass'].to(self.device)
+        elif self.args.model == 'mdn':
+            self.model = MDN_hourglass(n=5, nstack=2, dims=[256, 256, 384, 384, 384, 512], 
+                                    modules=[2, 2, 2, 2, 2, 4],num_classes=self.num_classes).to(self.device)
             self.train = self.train_mdn
             self.test = self.test_mdn
+        else:
+            raise NotImplementedError
         self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr,weight_decay=1e-7)
     
     def train_mdn(self):

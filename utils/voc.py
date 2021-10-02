@@ -42,7 +42,7 @@ class PascalVOC(data.Dataset):
     self.eig_vec = np.array(VOC_EIGEN_VECTORS, dtype=np.float32)
 
     self.split = split
-    self.root = os.path.join(root, 'voc')
+    self.root = root
     self.img_dir = os.path.join(self.root, 'images')
     _ann_name = {'train': 'trainval0712', 'val': 'test2007'}
     self.annot_path = os.path.join(self.root, 'annotations', 'pascal_%s.json' % _ann_name[split])
