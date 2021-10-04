@@ -9,7 +9,7 @@ class MixtureHead(nn.Module):
                  in_dim     = 64,   # input feature dimension 
                  cnv_dim = 256,     # cnv dim
                  num_classes      = 80,   # number of classes 
-                 k          = 5,    # number of mixtures
+                 k          = 10,    # number of mixtures
                  sig_min    = 1, # minimum sigma
                  sig_max    = 10, # maximum sigma
                  SHARE_SIG  = True  # share sigma among mixture

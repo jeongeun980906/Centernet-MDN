@@ -40,7 +40,7 @@ class SOLVER():
             self.num_classes=20
             if self.train_mode:
                 self.dataset = PascalVOC(root='/data/private/voc')
-                self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=8,shuffle=True,num_workers=0)
+                self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=24,shuffle=True,num_workers=0)
             else:
                 self.dataset = COCO_eval(root='/data/private/voc',split='test')
                 self.dataloader = torch.utils.data.DataLoader(self.dataset,batch_size=1,shuffle=True,num_workers=0)
@@ -65,6 +65,9 @@ class SOLVER():
         EPOCHS = 20
         try:
             os.mkdir("./res/{}".format(self.args.id))
+        except:
+            pass
+        try:
             os.mkdir("./ckpt/mdn/{}".format(self.args.id))
         except:
             pass
@@ -82,7 +85,7 @@ class SOLVER():
                 for hmap in hmaps:
                     pi,mu,sigma = hmap['pi'], hmap['mu'], hmap['sigma']
                     hmap_mace_loss = mace_loss(pi,mu,sigma, batch['hmap'].to(self.device))
-                    hmap_loss += hmap_mace_loss['mace_avg'] - 1 * hmap_mace_loss['epis_avg']  + 1* hmap_mace_loss['alea_avg']
+                    hmap_loss += hmap_mace_loss['mace_avg'] - 1 * hmap_mace_loss['epis_avg']  + 0.1 * hmap_mace_loss['alea_avg']
                 reg_loss = _reg_loss(regs, batch['regs'].to(self.device), batch['ind_masks'].to(self.device))
                 w_h_loss = _reg_loss(w_h_, batch['w_h_'].to(self.device), batch['ind_masks'].to(self.device))
                 loss = hmap_loss + 1 * reg_loss + 0.1 * w_h_loss
