@@ -11,7 +11,7 @@
 </p>
 
 ### Qualitative Results
-**Architecture**
+
 <p align="center">
   <img width="600" height="auto" src="https://github.com/jeongeun980906/Centernet-MDN/blob/main/mln_centernet.png">
 </p>
