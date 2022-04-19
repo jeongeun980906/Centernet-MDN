@@ -4,6 +4,7 @@
 <p align="center">
   <img width="600" height="auto" src="https://github.com/jeongeun980906/Centernet-MDN/blob/main/framework.png">
 </p>
+
 **Loss**
 <p align="center">
   <img width="600" height="auto" src="https://github.com/jeongeun980906/Centernet-MDN/blob/main/loss.png">
