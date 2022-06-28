@@ -1,4 +1,10 @@
 # Centernet-MDN
+Original Paper: [CenterNet](https://arxiv.org/abs/1904.07850),  [MDN](https://arxiv.org/pdf/1709.02249)
+
+Original Code From [code](https://github.com/xingyizhou/CenterNet)
+
+
+Mixture Density Network + CenterNet
 
 **Architecture**
 <p align="center">
